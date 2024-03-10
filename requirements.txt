@@ -1,0 +1,10 @@
+modal
+pandas
+lxml
+sqlite_utils
+
+astral
+requests
+pytz
+plotly
+beautifulsoup4
