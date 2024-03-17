@@ -44,13 +44,30 @@ with conditions_image.imports():
 def update_conditions_db():
     import sqlite_utils
 
-    print("Scraping conditions...")
     new = hcc.scrape_conditions()
+
+    # Rename the 'Current conditions' column to 'condition'
+    new.rename(columns={'Current conditions': 'condition'}, inplace=True)
+    new.rename(columns={'From': 'from'}, inplace=True)
+    new.rename(columns={'To': 'to'}, inplace=True)
+    new.drop('Local', axis=1, inplace=True)
+
 
     print("Inserting new data into DB...")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite_utils.Database(DB_PATH)
+
+    # Create the "conditions" table with the correct columns if it doesn't exist
+    if "conditions" not in db.table_names():
+        db["conditions"].create({
+            "date": "text",
+            "from": "text",
+            "to": "text",
+            "condition": "text"
+        }, pk=("date", "from", "to"))
+
     table = db["conditions"]
+
     # insert new into db
     table.insert_all(new.to_dict(orient="records"), replace=True)
     table.create_index(["date", "from", "to"], unique=True, if_not_exists=True)
@@ -185,4 +202,5 @@ def run():
 
 if __name__ == "__main__":
     print(run())
-    # print(scrape_conditions
+    # import hcc
+    # print(hcc.scrape_conditions())
