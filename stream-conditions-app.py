@@ -2,7 +2,7 @@ import pathlib
 import pandas as pd
 import re
 
-from modal import Image, Period, Stub, Volume, web_endpoint, Dict
+from modal import Image, Period, Stub, Volume, web_endpoint, Dict, Secret
 
 stub = Stub("river-conditions")
 stub.dict = Dict.new()
@@ -11,8 +11,8 @@ conditions_image = (
     Image.debian_slim()
     .apt_install("git")
     .pip_install("pandas", "lxml", "sqlite-utils")
-    .pip_install_from_requirements("requirements.txt")
-    .pip_install("git+https://github.com/andrie/thames_river_conditions.git")
+    .pip_install_from_requirements("requirements.txt") #, force_build=True)
+    .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
     # .pip_install("poetry")
     # .run("poetry install git+https://github.com/andrie/thames_river_conditions.git")
     # .pip_install_from_pyproject("https://github.com/andrie/thames_river_conditions.git")
@@ -29,6 +29,7 @@ with conditions_image.imports():
     import hcc
     import hcc.ea_rivers
     import hcc.sunrise
+    import hcc.metoffice
 
 
 
@@ -148,6 +149,62 @@ def get_metric(search, parameter="level", qualifier="Downstream Stage", river_na
     else:
         z = hcc.ea_rivers.get_readings_for_measure(id, since = since)
     return z[['dateTime', 'value']]
+
+
+@stub.function(
+    image   = conditions_image,
+    volumes = {VOLUME_DIR: volume},
+    secrets = [Secret.from_name("MET-OFFICE")]
+)
+@web_endpoint(label="weather")
+def weather(type = "hourly"):
+    import os
+
+    try:
+        api_key = os.environ["MET_OFFICE_API_KEY"]
+    except KeyError as e:
+        return({"Error": f"{e}"})
+
+    key_data = f"weather-data-{type}"
+    key_time = f"weather-time-{type}"
+
+    if is_valid_cache(key_time, timeout=60):
+        try:
+            v_data = get_cached_data(key_data)
+            return v_data
+        except KeyError:
+            pass
+
+    try:
+        v_data = hcc.metoffice.get_weather(51.41, -0.36, type = type, api_key = api_key)
+    except Exception as e:
+        return({"Error": f"{e}"})
+    
+    set_cached_data(key_data, key_time, v_data.to_json(orient="columns"))
+
+    return v_data.to_json(orient="records")
+
+
+def is_valid_cache(key_time, timeout = 15):
+    try:
+        last_time = pd.Timestamp(stub.dict[key_time])
+    except:
+        return False
+    
+    return pd.Timestamp.now() - last_time < pd.Timedelta(minutes=timeout)
+
+def get_cached_data(key_data):
+    try:
+        v_data = stub.dict[key_data]
+        print("Using cached data")
+        return v_data
+    except KeyError:
+        raise KeyError("No cached data")
+    
+def set_cached_data(key_data, key_time, v_data):
+    stub.dict[key_data] = v_data
+    stub.dict[key_time] = pd.Timestamp.now().isoformat()
+    return None
 
 
 

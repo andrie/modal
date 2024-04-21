@@ -8,3 +8,4 @@ requests
 pytz
 plotly
 beautifulsoup4
+python-dotenv
