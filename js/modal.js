@@ -27,7 +27,7 @@ async function fetchRiverConditionsData() {
     const storedData = localStorage.getItem('data-river-closures');
     const storedTime = localStorage.getItem('time-river-closures');
 
-    if (storedData && storedTime && currentTime > new Date(storedTime)) {
+    if (storedData && storedTime && currentTime < new Date(storedTime)) {
         // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
         data = JSON.parse(storedData);
     } else {
@@ -66,7 +66,7 @@ async function fetchWeatherData() {
     const currentTime = Date.now();
     const storedTime = localStorage.getItem('time-weather');
     
-    if (storedTime && currentTime > new Date(storedTime)) {
+    if (storedTime && currentTime < new Date(storedTime)) {
         // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
         data = localStorage.getItem('data-weather');
     } else {
@@ -86,6 +86,7 @@ async function fetchWeatherData() {
 async function updateWeather(element = 'weather-forecast-table') {
     const data = await fetchWeatherData();
     // const times = Object.values(data.time);
+    console.log(data)
     const times = Object.values(data.time).map(time => {
         const date = new Date(time);
         // date.setHours(date.getHours() - 1); // Convert to British local time
@@ -97,20 +98,36 @@ async function updateWeather(element = 'weather-forecast-table') {
             minute: '2-digit'
         }).format(date);
     });
-    // console.log(data.time);
     const descriptions = Object.values(data.description);
     const icons = Object.values(data.icon);
+    const temperature = Object.values(data.screenTemperature).map(
+        t => Math.round(t) + '°C'
+    );
+    const windSpeed = Object.values(data.windSpeed10m).map(v => Math.round(v*3.6))
+    const windGust  = Object.values(data.windGustSpeed10m).map(v => Math.round(v*3.6))
+    const windDir   = Object.values(data.windDirectionFrom10m)
+    const rain = Object.values(data.probOfPrecipitation).map(p => p + '%' )
+
+    const wind = windSpeed
 
     const container = document.getElementById(element);
     container.innerHTML = '';
 
     const combinedData = times.map((time, index) =>
         [
-            time, 
+            Object(data.time)[index], 
             descriptions[index], 
-            icons[index]
+            icons[index],
+            temperature[index],
+            rain[index],
+            wind[index] + ' - ' + windGust[index],
+            // windGust[index],
+            windDir[index],
         ]
-    );
+    ).filter(row => {
+        const rowTime = new Date(row[0]);
+        return rowTime >= new Date(); // Only keep rows where time is in the future
+    });
 
     const wrapper = document.createElement('div');
     wrapper.style.maxHeight = '16rem'; // Adjust this value to fit 8 rows
@@ -118,10 +135,21 @@ async function updateWeather(element = 'weather-forecast-table') {
     container.appendChild(wrapper);
 
     new gridjs.Grid({
-        columns: ['time', 'description', {
-            name: 'icon',
-            formatter: (cell) => gridjs.h('i', { className: `wi ${cell}` })
-        }],
+        columns: [
+            'time', 
+            'description', 
+            {
+                name: 'icon',
+                formatter: (cell) => gridjs.h('i', { className: `wi ${cell}` })
+            },
+            'temp',
+            'rain',
+            'wind (km/h)',
+            {
+                name: 'from',
+                formatter: (cell) => gridjs.h('i', { className: `wi wi-wind from-${cell}-deg` })
+            },
+        ],
         data: combinedData,
     }).render(wrapper);
 }
