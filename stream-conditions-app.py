@@ -11,7 +11,7 @@ conditions_image = (
     Image.debian_slim()
     .apt_install("git")
     .pip_install("pandas", "lxml", "sqlite-utils")
-    .pip_install_from_requirements("requirements.txt") #, force_build=True)
+    .pip_install_from_requirements("requirements.txt")#, force_build=True)
     .pip_install("git+https://github.com/andrie/thames_river_conditions.git", force_build=True)
     # .pip_install("poetry")
     # .run("poetry install git+https://github.com/andrie/thames_river_conditions.git")
@@ -203,7 +203,7 @@ def get_cached_data(key_data):
     
 def set_cached_data(key_data, key_time, v_data):
     stub.dict[key_data] = v_data
-    stub.dict[key_time] = pd.Timestamp.now().isoformat()
+    stub.dict[key_time] = pd.Timestamp.now()
     return None
 
 
