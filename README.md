@@ -1,4 +1,4 @@
-Testing ideas using model.com
+Testing ideas using modal.com
 
 https://modal.com/
 
@@ -7,6 +7,8 @@ https://modal.com/
 
 ``` shell
 modal run .\stream-conditions-app.py
+modal serve .\stream-conditions-app.py
+modal deploy .\stream-conditions-app.py
 ```
 
 
