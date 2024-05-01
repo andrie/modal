@@ -49,3 +49,5 @@ format:
 
 ::: {#lock-level-table .autospinner}
 :::
+
+---
