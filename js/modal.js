@@ -156,6 +156,44 @@ async function updateWeather(element = 'weather-forecast-table') {
 
 
 
+// flow rate -------------------------------------------------------------
+
+async function updateFlowRate(station = "Walton", element = 'flow-rate-table') {
+
+    // const station_search = station
+    // const station = station_search + " Lock";
+
+    const data = await request('https://andrie--flow.modal.run/?station=' + station);
+    const container = document.getElementById(element);
+    container.innerHTML = '';
+
+    pdata = data.map(row => {
+        return {
+            x: row.dateTime,
+            y: row.value
+        }
+    });
+    const pData = [{
+        x: data.map(row => row.dateTime),
+        y: data.map(row => row.value),
+        mode: 'lines+markers',
+        marker: {
+            size: 4  // Make the markers smaller
+        },
+        line: {
+            shape: 'spline'  // Make the lines curved
+        }
+        
+    }];
+    Plotly.newPlot(container, pData,
+        {
+            title: 'Flow rate at ' + station,
+            yaxis: { title: 'cumecs' }
+        }
+    );
+}
+
+
 // lock level ------------------------------------------------------------
 
 async function updateLockLevel() {
@@ -221,6 +259,7 @@ window.onload = async function() {
         updateSunTimes(),
         updateRiverConditions(),
         updateLockLevel("Sunbury"),
+        updateFlowRate("Walton", "flow-rate-table"),
         updateWeather('weather-forecast-table'),
     ]);
  }

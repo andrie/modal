@@ -2,45 +2,50 @@ import pathlib
 import pandas as pd
 import re
 
-from modal import Image, Period, Stub, Volume, web_endpoint, Dict, Secret
+from modal import Image, Period, App, Mount, Volume, web_endpoint, Dict, Secret
 
-stub = Stub("river-conditions")
-stub.dict = Dict.new()
+app = App("river-conditions")
+app_dict = Dict.from_name("hcc", create_if_missing=True)
 
 conditions_image = (
     Image.debian_slim()
     .apt_install("git")
     .pip_install("pandas", "lxml", "sqlite-utils")
     .pip_install_from_requirements("requirements.txt")#, force_build=True)
-    .pip_install("git+https://github.com/andrie/thames_river_conditions.git", force_build=True)
+    .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
     # .pip_install("poetry")
     # .run("poetry install git+https://github.com/andrie/thames_river_conditions.git")
     # .pip_install_from_pyproject("https://github.com/andrie/thames_river_conditions.git")
 )
 
-volume = Volume.persisted("river-conditions-volume")
+# volume = Volume.persisted("river-conditions-volume")
+volume = Volume.from_name("river-conditions-volume")
 
 VOLUME_DIR = "/cache-vol"
 # REPORTS_DIR = pathlib.Path(VOLUME_DIR, "COVID-19")
 DB_PATH = pathlib.Path(VOLUME_DIR, "river-conditions.db")
 
 
+
+# @app.function(
+#     mounts = [Mount.from_local_python_packages("hcc_modal")]
+# )
 with conditions_image.imports():
     import hcc
     import hcc.ea_rivers
     import hcc.sunrise
     import hcc.metoffice
+    # from hcc_modal import get_metric, get_station_id, get_stations
 
 
 
 
 
 
-@stub.function(
+@app.function(
     image   = conditions_image,
     volumes = {VOLUME_DIR: volume},
     schedule = Period(days=1),
-    # asgi_app=asgi_app,
 )
 def update_conditions_db():
     import sqlite_utils
@@ -80,7 +85,7 @@ def update_conditions_db():
     return None
 
 
-@stub.function(
+@app.function(
     image   = conditions_image,
     volumes = {VOLUME_DIR: volume}
 )
@@ -95,7 +100,7 @@ def api():
 
 
 
-@stub.function(
+@app.function(
     image   = conditions_image,
     volumes = {VOLUME_DIR: volume}
 )
@@ -107,7 +112,7 @@ def sunrise_times():
 
 
 
-@stub.function(
+@app.function(
     image   = conditions_image,
     volumes = {VOLUME_DIR: volume}
 )
@@ -117,41 +122,39 @@ def update_stations_dict():
 
 
 
-def get_stations(parameter="level", qualifier = "Downstream Stage", river_name="River Thames"):
-    if parameter == "flow":
-        qualifier = None
-    key = f"stations-{river_name}-{parameter}-{qualifier}"
+
+
+@app.function(
+    image   = conditions_image,
+    mounts  = [Mount.from_local_python_packages("hcc_modal", "hcc_modal")],
+    volumes = {VOLUME_DIR: volume},
+)
+@web_endpoint(label="flow")
+def flow(station = "Walton"):
+    import hcc_modal
+    # get_metric = hcc.get_metric
+    print("getting name")
+    name, id = hcc_modal.get_station_id(station, parameter="flow")
+    print(f"name: {name}")
+    key_data = f"flow-data-{name}"
+    key_time = f"flow-time-{name}"
+    if is_valid_cache(key_time, timeout=15):
+        try:
+            v_data = get_cached_data(key_data)
+            return v_data
+        except KeyError:
+            pass
     try:
-        stations = stub.dict[key]
-    except:
-        stations = hcc.ea_rivers.get_stations(river_name=river_name, parameter=parameter, qualifier=qualifier)
-        stub.dict[key] = stations
-    return stations
-
-def get_station_id(search, parameter="level", qualifier = "Downstream Stage", river_name="River Thames"):
-    stations = get_stations(parameter=parameter, qualifier=qualifier, river_name=river_name)
-    idx = stations["label"].str.contains(search, na = False)
-    name = stations.loc[idx, ["label"]].values[0][0]
-    measures = stations.loc[idx, ["measures"]]
-    m = [x['@id'] for x in measures.values[0][0] if x['unitName'] == 'mASD']
-
-    url = stations.loc[idx, "@id"].values[0]
-    return name, m[0]
+        # print("trying to get data")
+        v_data = hcc_modal.get_metric(name, parameter = "flow")
+    except Exception as e:
+        return({"Error": f"{e}"})
+    set_cached_data(key_data, key_time, v_data.to_dict(orient="records"))
+    return v_data.to_dict(orient="records")
 
 
-def get_metric(search, parameter="level", qualifier="Downstream Stage", river_name="River Thames", since = None, limit = 7*24*4):
-    # stations = get_stations(parameter=parameter, qualifier=qualifier, river_name=river_name)
-    name, id = get_station_id(search, parameter=parameter, qualifier=qualifier, river_name=river_name)
-    print(id)
-    print(name)
-    if since is None:
-        z = hcc.ea_rivers.get_readings_for_measure(id, limit = limit)
-    else:
-        z = hcc.ea_rivers.get_readings_for_measure(id, since = since)
-    return z[['dateTime', 'value']]
 
-
-@stub.function(
+@app.function(
     image   = conditions_image,
     volumes = {VOLUME_DIR: volume},
     secrets = [Secret.from_name("MET-OFFICE")]
@@ -159,35 +162,29 @@ def get_metric(search, parameter="level", qualifier="Downstream Stage", river_na
 @web_endpoint(label="weather")
 def weather(type = "hourly"):
     import os
-
     try:
         api_key = os.environ["MET_OFFICE_API_KEY"]
     except KeyError as e:
         return({"Error": f"{e}"})
-
     key_data = f"weather-data-{type}"
     key_time = f"weather-time-{type}"
-
     if is_valid_cache(key_time, timeout=60):
         try:
             v_data = get_cached_data(key_data)
             return v_data
         except KeyError:
             pass
-
     try:
         v_data = hcc.metoffice.get_weather(51.41, -0.36, type = type, api_key = api_key)
     except Exception as e:
         return({"Error": f"{e}"})
-    
     set_cached_data(key_data, key_time, v_data.to_json(orient="columns"))
-
-    return v_data.to_json(orient="records")
+    return v_data.to_json(orient="columns")
 
 
 def is_valid_cache(key_time, timeout = 15):
     try:
-        last_time = pd.Timestamp(stub.dict[key_time])
+        last_time = pd.Timestamp(app_dict[key_time])
     except:
         return False
     
@@ -195,28 +192,32 @@ def is_valid_cache(key_time, timeout = 15):
 
 def get_cached_data(key_data):
     try:
-        v_data = stub.dict[key_data]
+        v_data = app_dict[key_data]
         print("Using cached data")
         return v_data
     except KeyError:
         raise KeyError("No cached data")
     
 def set_cached_data(key_data, key_time, v_data):
-    stub.dict[key_data] = v_data
-    stub.dict[key_time] = pd.Timestamp.now()
+    app_dict[key_data] = v_data
+    app_dict[key_time] = pd.Timestamp.now()
     return None
 
 
 
-@stub.function(
+@app.function(
     image   = conditions_image,
-    volumes = {VOLUME_DIR: volume}
+    volumes = {VOLUME_DIR: volume},
+    mounts=[Mount.from_local_python_packages("hcc_modal")],
 )
 @web_endpoint(label="thames-water-level")
-def lock_level(station, parameter="level", qualifier="Downstream Stage"):
-    import hcc
+def lock_level(station="Molesey", parameter="level", qualifier="Downstream Stage"):
 
-    name, id = get_station_id(station, parameter=parameter, qualifier=qualifier)
+    import hcc
+    import hcc_modal
+    # from hcc_modal import get_metric, get_station_id
+
+    name, id = hcc_modal.get_station_id(station, parameter=parameter, qualifier=qualifier)
 
     key_data = f"data-{name}-{parameter}-{qualifier}"
     key_time = f"time-{name}-{parameter}-{qualifier}"
@@ -224,10 +225,10 @@ def lock_level(station, parameter="level", qualifier="Downstream Stage"):
     print(f"Using key {key_data}")
     # check if dict value exists and is older than 15 minutes
     try:
-        last_time = pd.Timestamp(stub.dict[key_time])
+        last_time = pd.Timestamp(app_dict[key_time])
         if pd.Timestamp.now() - last_time < pd.Timedelta(minutes=15):
             try:
-                v_data = stub.dict[key_data]
+                v_data = app_dict[key_data]
                 print("Using cached data")
                 return v_data
             except KeyError:
@@ -237,7 +238,7 @@ def lock_level(station, parameter="level", qualifier="Downstream Stage"):
 
     try:
         print("Fetching new data")
-        z = get_metric(name, parameter = parameter, qualifier=qualifier)
+        z = hcc_modal.get_metric(name, parameter = parameter, qualifier=qualifier)
         # extract only the datetime and value columns from z
     except Exception as e:
         print(f"Error: {e} ")
@@ -245,13 +246,13 @@ def lock_level(station, parameter="level", qualifier="Downstream Stage"):
         return z
 
     v_data = z[["dateTime", "value"]]
-    stub.dict[key_data] = v_data.to_dict(orient="records")
-    stub.dict[key_time] = pd.Timestamp.now().isoformat()
+    app_dict[key_data] = v_data.to_dict(orient="records")
+    app_dict[key_time] = pd.Timestamp.now().isoformat()
            
     return v_data.to_dict(orient="records")
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def run():
     update_conditions_db.remote()
     update_stations_dict.remote()
