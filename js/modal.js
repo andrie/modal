@@ -196,9 +196,9 @@ async function updateFlowRate(station = "Walton", element = 'flow-rate-table') {
 
 // lock level ------------------------------------------------------------
 
-async function updateLockLevel() {
+async function updateLockLevel(station_search = "Sunbury") {
 
-    const station_search = "Molesey"
+    // const station_search = "Molesey"
     const station = station_search + " Lock";
 
     const data = await request('https://andrie--thames-water-level.modal.run/?station=' + station_search);
@@ -225,7 +225,7 @@ async function updateLockLevel() {
     }];
     Plotly.newPlot(container, pData,
         {
-            title: 'Lock level at ' + station,
+            title: 'Water level at ' + station,
             yaxis: { title: 'Level (mASD)' }
         }
     );
