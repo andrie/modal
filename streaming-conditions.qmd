@@ -28,14 +28,17 @@ format:
 :::{#sun-times-table .autospinner}
 :::
 
-## Flow rate
-
-::: {#flow-rate-table .autospinner}
-:::
-
 ## River conditions
 
 ::: {#river-closures-table .autospinner}
+:::
+
+## Flow rate
+
+::: {#flow-rate-walton .autospinner}
+:::
+
+::: {#flow-rate-kingston .autospinner}
 :::
 
 ## Weather forecast

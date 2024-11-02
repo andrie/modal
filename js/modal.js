@@ -6,7 +6,7 @@ async function request(url) {
 }
 
 async function updateSunTimes() {
-    const data = await request("https://andrie--thames-sunrise.modal.run/");
+    const data = await request("https://andrie--conditions.modal.run?metric=sunrise");
     const container = document.getElementById('sun-times-table');
     container.innerHTML = '';
     // Transpose the data
@@ -32,7 +32,7 @@ async function fetchRiverConditionsData() {
         data = JSON.parse(storedData);
     } else {
         // Otherwise, fetch the data from the API
-        data = await request('https://andrie--thames-conditions.modal.run/');
+        data = await request('https://andrie--conditions.modal.run?metric=boards');
 
         // filter data on rows where `To` == 'Molesey Lock'
 
@@ -41,7 +41,8 @@ async function fetchRiverConditionsData() {
         const updateTime = currentTime + 15 * 60 * 1000;
         localStorage.setItem('time-river-closures', updateTime.toString());
     }
-    const sub = data.filter(row => row.to === 'Molesey Lock');
+    // const sub = data.filter(row => row.to === 'Molesey Lock');
+    const sub = data;
     return sub;
 }
 
@@ -71,7 +72,7 @@ async function fetchWeatherData() {
         data = localStorage.getItem('data-weather');
     } else {
         // Otherwise, fetch the data from the API
-        data = await request('https://andrie--weather.modal.run/');
+        data = await request('https://andrie--conditions.modal.run?metric=weather');
         // Store the data and the current time in local storage
         localStorage.setItem('data-weather', JSON.stringify(data));
         const updateTime = currentTime + 15 * 60 * 1000;
@@ -160,10 +161,7 @@ async function updateWeather(element = 'weather-forecast-table') {
 
 async function updateFlowRate(station = "Walton", element = 'flow-rate-table') {
 
-    // const station_search = station
-    // const station = station_search + " Lock";
-
-    const data = await request('https://andrie--flow.modal.run/?station=' + station);
+    const data = await request('https://andrie--conditions.modal.run?metric=flow&station=' + station);
     const container = document.getElementById(element);
     container.innerHTML = '';
 
@@ -259,7 +257,8 @@ window.onload = async function() {
         updateSunTimes(),
         updateRiverConditions(),
         updateLockLevel("Sunbury"),
-        updateFlowRate("Walton", "flow-rate-table"),
+        updateFlowRate("Walton", "flow-rate-walton"),
+        updateFlowRate("Kingston", "flow-rate-kingston"),
         updateWeather('weather-forecast-table'),
     ]);
  }

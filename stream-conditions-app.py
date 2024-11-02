@@ -12,7 +12,7 @@ conditions_image = (
     .apt_install("git")
     .pip_install("pandas", "lxml", "sqlite-utils")
     .pip_install_from_requirements("requirements.txt")#, force_build=True)
-    .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
+    # .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
     # .pip_install("poetry")
     # .run("poetry install git+https://github.com/andrie/thames_river_conditions.git")
     # .pip_install_from_pyproject("https://github.com/andrie/thames_river_conditions.git")
