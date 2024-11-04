@@ -9,10 +9,9 @@ app_dict = Dict.from_name("hcc-modal-dict", create_if_missing=True)
 
 minimal_image = (
     Image.debian_slim()
-    .apt_install("git")
+    # .apt_install("git")
     .pip_install('pandas', 'requests')
-    # .pip_install_from_requirements("requirements.txt")#, force_build=True)
-    # .pip_install('git+https://github.com/DavidASmith/ea-rivers.git') #, force_build=True)
+    # .pip_install('requests')
 )
 
 conditions_image = (
@@ -21,9 +20,6 @@ conditions_image = (
     .pip_install("pandas", "requests")
     .pip_install("git+https://github.com/andrie/thames_river_conditions.git", force_build=True)
     .pip_install_from_requirements("requirements.txt")#, force_build=True)
-    # .pip_install("poetry")
-    # .run("poetry install git+https://github.com/andrie/thames_river_conditions.git")
-    # .pip_install_from_pyproject("https://github.com/andrie/thames_river_conditions.git")
 )
 
 
@@ -34,12 +30,17 @@ conditions_image = (
 @web_endpoint(label="conditions")
 def conditions(metric = "flow", station = "walton"):
     metric = metric.lower()
+    station = station.lower()
 
     if metric == 'flow':
-        # station = 'walton'
         station = station.lower()
         flow = app_dict[f'flow_{station}']
         return flow
+    
+    if metric == 'level':
+        station = station.lower()
+        level = app_dict[f'level_{station}']
+        return level
     
     if metric == 'sunrise':
         return app_dict['sunrise']
@@ -102,6 +103,7 @@ def cache_flow():
     import ea_rivers
 
     base_url = 'https://environment.data.gov.uk/flood-monitoring/id/measures'
+
     flow_url = {
         'kingston': f'{base_url}/3400TH-flow-water-i-15_min-m3_s',
         'walton':   f'{base_url}/3100TH-flow--i-15_min-m3_s'
@@ -117,26 +119,34 @@ def cache_flow():
         app_dict[f'flow_{station}'] = flow_dict
 
 
+    level_url = {
+        'sunbury': f'{base_url}/3101TH-level-downstage-i-15_min-mASD',
+        'molesey': f'{base_url}/3102TH-level-downstage-i-15_min-mASD'
+    }
+    
+    for station, url in level_url.items():
+        level = ea_rivers.get_readings_for_measure(url, limit = 4*24*7)
+        if level.empty:
+            level_dict = "No level data"
+        else:
+            level = level.sort_values(by='dateTime', ascending=True)[['dateTime', 'value']]
+            level_dict = level.to_dict(orient='records')
+        app_dict[f'level_{station}'] = level_dict
+
+
     # cache sunrise times
     import hcc
     app_dict['sunrise'] = hcc.sunrise_times().to_dict(orient='records')
 
 
     # cache lock board conditions
-
     new = hcc.scrape_conditions()
-    # Rename the 'Current conditions' column to 'condition'
     new.rename(columns={'Current conditions': 'condition'}, inplace=True)
     new.rename(columns={'From': 'from'}, inplace=True)
     new.rename(columns={'To': 'to'}, inplace=True)
-    # new.drop('Local', axis=1, inplace=True)
-    
     app_dict['lockboard'] = new[42:45].to_dict(orient='records')
 
-
     return True
-
-
 
 
 @app.local_entrypoint()
@@ -147,5 +157,3 @@ def run():
 
 if __name__ == "__main__":
     print(run())
-    # import hcc
-    # print(hcc.scrape_conditions())

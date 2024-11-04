@@ -194,13 +194,13 @@ async function updateFlowRate(station = "Walton", element = 'flow-rate-table') {
 
 // lock level ------------------------------------------------------------
 
-async function updateLockLevel(station_search = "Sunbury") {
+async function updateLockLevel(station = "Sunbury", element = "level-sunbury") {
 
     // const station_search = "Molesey"
-    const station = station_search + " Lock";
+    // const station = station_search + " Lock";
 
-    const data = await request('https://andrie--thames-water-level.modal.run/?station=' + station_search);
-    const container = document.getElementById('lock-level-table');
+    const data = await request(`https://andrie--conditions.modal.run?metric=level&station=${station}`);
+    const container = document.getElementById(element);
     container.innerHTML = '';
 
     pdata = data.map(row => {
@@ -256,7 +256,8 @@ window.onload = async function() {
     await Promise.all([
         updateSunTimes(),
         updateRiverConditions(),
-        updateLockLevel("Sunbury"),
+        updateLockLevel("Sunbury", "level-sunbury"),
+        updateLockLevel("Molesey", "level-molesey"),
         updateFlowRate("Walton", "flow-rate-walton"),
         updateFlowRate("Kingston", "flow-rate-kingston"),
         updateWeather('weather-forecast-table'),

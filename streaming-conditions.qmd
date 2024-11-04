@@ -50,7 +50,10 @@ format:
 
 ## Lock level
 
-::: {#lock-level-table .autospinner}
+::: {#level-sunbury .autospinner}
+:::
+
+::: {#level-molesey .autospinner}
 :::
 
 ---
