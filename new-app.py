@@ -179,7 +179,7 @@ def cache_flow():
     app_dict['lockboard'] = boards
 
     # cache water temperature
-    water_temperature = get_water_water_temperature()
+    water_temperature = get_water_temperature()
     app_dict['water_temperature'] = water_temperature
 
     update_hcc_dict()
