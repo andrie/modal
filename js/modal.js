@@ -264,18 +264,23 @@ window.onload = async function() {
         addSpinner(el);
     });
 
-    // get data from modal.run and cache in local storage
-    hcc_data = await update_hcc_summary()
+    const summary = false;
+    if (summary) {
+        hcc_data = await update_hcc_summary()
+    } else {   
+        hcc_data = await update_hcc_all()
+    }
     Object.entries(hcc_data).forEach(([name, data]) => {
         setCache(data, name)
     })
-
     displaySunTimes('sun-times-table');
     displayRiverConditions('river-conditions-table')
     updateFlowRate("Walton", "flow-rate-walton")
-    updateLockLevel("Sunbury", "level-sunbury")
-    updateLockLevel("Molesey", "level-molesey")
-    updateFlowRate("Kingston", "flow-rate-kingston")
-    updateWeather('weather-forecast-table')
+    if (!summary) {
+        updateLockLevel("Sunbury", "level-sunbury")
+        updateLockLevel("Molesey", "level-molesey")
+        updateFlowRate("Kingston", "flow-rate-kingston")
+        updateWeather('weather-forecast-table')
+    }
     
  }
