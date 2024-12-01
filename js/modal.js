@@ -1,13 +1,59 @@
+const dev_mode = false;
+if (dev_mode) {
+    modal_url = "https://andrie--conditions-dev.modal.run/"
+} else {
+    modal_url = "https://andrie--conditions.modal.run/"
+}
 
 async function request(url) {
+    // const response = await fetch(url, { mode: 'no-cors' });
     const response = await fetch(url);
-    const data = await response.json();
+    return response.json();
+}
+
+
+function getCache(cache_name, expiry = 15) {
+    storedData = localStorage.getItem(`data-${cache_name}`);
+    storedTime = localStorage.getItem(`time-${cache_name}`);
+    currentTime = Date.now()
+    expiryTime = parseInt(storedTime) + expiry * 60 * 1000;
+    if (storedData && storedTime && expiryTime > currentTime) {
+        // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
+        return JSON.parse(storedData);
+    }
+    return null;   
+}
+
+function setCache(data, cache_name, time = Date.now()) {
+    localStorage.setItem(`data-${cache_name}`, JSON.stringify(data));
+    localStorage.setItem(`time-${cache_name}`, time);
+    return true
+}
+
+async function request_modal(parms, cache_name, expiry = 15) {
+    data = getCache(cache_name, expiry = expiry)
+    if (!data) {
+        data = await request(`${modal_url}?${parms}`);
+        if (data) { setCache(data, cache_name); }
+    }
     return data;
 }
 
-async function updateSunTimes() {
-    const data = await request("https://andrie--conditions.modal.run?metric=sunrise");
-    const container = document.getElementById('sun-times-table');
+function checkValidElement(element) {
+    const container = document.getElementById(element)
+    if (!container) {
+        console.log(`No container found for ${element}`);
+        return null
+    };
+    return container;
+}
+
+async function displaySunTimes(element = 'sun-times-table') {
+    const container = checkValidElement(element)
+    if (!container) { return null };
+
+    const data = await request_modal('metric=sunrise', 'sunrise');
+    // console.log(data)
     container.innerHTML = '';
     // Transpose the data
     const tdata = [
@@ -22,32 +68,8 @@ async function updateSunTimes() {
 
 // river conditions -----------------------------------------------------
 
-async function fetchRiverConditionsData() {
-    const currentTime = Date.now();
-    const storedData = localStorage.getItem('data-river-closures');
-    const storedTime = localStorage.getItem('time-river-closures');
-
-    if (storedData && storedTime && currentTime < new Date(storedTime)) {
-        // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
-        data = JSON.parse(storedData);
-    } else {
-        // Otherwise, fetch the data from the API
-        data = await request('https://andrie--conditions.modal.run?metric=boards');
-
-        // filter data on rows where `To` == 'Molesey Lock'
-
-        // Store the data and the current time in local storage
-        localStorage.setItem('data-river-closures', JSON.stringify(data));
-        const updateTime = currentTime + 15 * 60 * 1000;
-        localStorage.setItem('time-river-closures', updateTime.toString());
-    }
-    // const sub = data.filter(row => row.to === 'Molesey Lock');
-    const sub = data;
-    return sub;
-}
-
-async function updateRiverConditions(element = 'river-closures-table') {
-    const data = await fetchRiverConditionsData()
+async function displayRiverConditions(element = 'river-conditions-table') {
+    const data = await request_modal('metric=boards', 'boards')
     const container = document.getElementById(element);
     container.innerHTML = '';
     // remove date columns
@@ -62,35 +84,13 @@ async function updateRiverConditions(element = 'river-closures-table') {
 
 // weather ---------------------------------------------------------------
 
-async function fetchWeatherData() {
-    var storedData;
-    const currentTime = Date.now();
-    const storedTime = localStorage.getItem('time-weather');
-    
-    if (storedTime && currentTime < new Date(storedTime)) {
-        // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
-        data = localStorage.getItem('data-weather');
-    } else {
-        // Otherwise, fetch the data from the API
-        data = await request('https://andrie--conditions.modal.run?metric=weather');
-        // Store the data and the current time in local storage
-        localStorage.setItem('data-weather', JSON.stringify(data));
-        const updateTime = currentTime + 15 * 60 * 1000;
-        localStorage.setItem('time-weather', updateTime.toString());
-    }
-    // data = await request('https://andrie--weather-dev.modal.run/');
-    data = JSON.parse(data);
-    const sub = data
-    return sub;
-}
 
 async function updateWeather(element = 'weather-forecast-table') {
-    const data = await fetchWeatherData();
-    // const times = Object.values(data.time);
-    console.log(data)
+    dataString = await request_modal("metric=weather", "weather")
+    data = JSON.parse(data)
+    // console.log(data)
     const times = Object.values(data.time).map(time => {
         const date = new Date(time);
-        // date.setHours(date.getHours() - 1); // Convert to British local time
         return new Intl.DateTimeFormat('en-GB', {
             year: 'numeric',
             month: '2-digit',
@@ -135,23 +135,31 @@ async function updateWeather(element = 'weather-forecast-table') {
     wrapper.style.overflow = 'auto';
     container.appendChild(wrapper);
 
+    const transposedData = combinedData[0].map((_, colIndex) => 
+        combinedData.map(row => row[colIndex])
+    );
+
+    // Extract the first row for column headers and format the time
+    const columnHeaders = transposedData[0].map(timestamp => {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    });
+
+    const dataWithoutHeaders = transposedData.slice(1);
+
+    // Apply formatter to wind direction row
+    dataWithoutHeaders[5] = dataWithoutHeaders[5].map(cell => 
+        gridjs.h('i', { className: `wi wi-wind from-${cell}-deg` })
+    );
+    
+    // Apply formatter to the weather symbols row
+    dataWithoutHeaders[1] = dataWithoutHeaders[1].map(cell => 
+        gridjs.h('i', { className: `wi ${cell}` })
+    );
+    
     new gridjs.Grid({
-        columns: [
-            'time', 
-            'description', 
-            {
-                name: 'icon',
-                formatter: (cell) => gridjs.h('i', { className: `wi ${cell}` })
-            },
-            'temp',
-            'rain',
-            'wind (km/h)',
-            {
-                name: 'from',
-                formatter: (cell) => gridjs.h('i', { className: `wi wi-wind from-${cell}-deg` })
-            },
-        ],
-        data: combinedData,
+        columns: columnHeaders,
+        data: dataWithoutHeaders,
     }).render(wrapper);
 }
 
@@ -161,7 +169,7 @@ async function updateWeather(element = 'weather-forecast-table') {
 
 async function updateFlowRate(station = "Walton", element = 'flow-rate-table') {
 
-    const data = await request('https://andrie--conditions.modal.run?metric=flow&station=' + station);
+    const data = await request(`${modal_url}?metric=flow&station=${station}`);
     const container = document.getElementById(element);
     container.innerHTML = '';
 
@@ -196,11 +204,8 @@ async function updateFlowRate(station = "Walton", element = 'flow-rate-table') {
 
 async function updateLockLevel(station = "Sunbury", element = "level-sunbury") {
 
-    // const station_search = "Molesey"
-    // const station = station_search + " Lock";
-
-    const data = await request(`https://andrie--conditions.modal.run?metric=level&station=${station}`);
     const container = document.getElementById(element);
+    const data = await request(`${modal_url}?metric=level&station=${station}`);
     container.innerHTML = '';
 
     pdata = data.map(row => {
@@ -245,6 +250,11 @@ addSpinner = function(el) {
     el.appendChild(spinner);
 }
 
+async function update_hcc_summary() {
+    const data = await request_modal('metric=hcc_summary', 'hcc_summary');
+    return data;
+}
+
 // window.onload ----------------------------------------------------------
 
 window.onload = async function() {
@@ -253,13 +263,19 @@ window.onload = async function() {
     ).forEach(function(el) {
         addSpinner(el);
     });
-    await Promise.all([
-        updateSunTimes(),
-        updateRiverConditions(),
-        updateLockLevel("Sunbury", "level-sunbury"),
-        updateLockLevel("Molesey", "level-molesey"),
-        updateFlowRate("Walton", "flow-rate-walton"),
-        updateFlowRate("Kingston", "flow-rate-kingston"),
-        updateWeather('weather-forecast-table'),
-    ]);
+
+    // get data from modal.run and cache in local storage
+    hcc_data = await update_hcc_summary()
+    Object.entries(hcc_data).forEach(([name, data]) => {
+        setCache(data, name)
+    })
+
+    displaySunTimes('sun-times-table');
+    displayRiverConditions('river-conditions-table')
+    updateFlowRate("Walton", "flow-rate-walton")
+    updateLockLevel("Sunbury", "level-sunbury")
+    updateLockLevel("Molesey", "level-molesey")
+    updateFlowRate("Kingston", "flow-rate-kingston")
+    updateWeather('weather-forecast-table')
+    
  }

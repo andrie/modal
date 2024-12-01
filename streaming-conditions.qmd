@@ -30,7 +30,7 @@ format:
 
 ## River conditions
 
-::: {#river-closures-table .autospinner}
+::: {#river-conditions-table .autospinner}
 :::
 
 ## Flow rate

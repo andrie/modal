@@ -7,15 +7,15 @@
   animation: spin 2s linear infinite;
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+  
 .wi {
   font-size: 1.5em;
 }
 
 .wi-wind {
   font-size: 2em;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }

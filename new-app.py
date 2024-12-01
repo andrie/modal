@@ -9,9 +9,7 @@ app_dict = Dict.from_name("hcc-modal-dict", create_if_missing=True)
 
 minimal_image = (
     Image.debian_slim()
-    # .apt_install("git")
     .pip_install('pandas', 'requests')
-    # .pip_install('requests')
 )
 
 conditions_image = (
@@ -31,6 +29,15 @@ conditions_image = (
 def conditions(metric = "flow", station = "walton"):
     metric = metric.lower()
     station = station.lower()
+
+    if metric == 'hcc_terse':
+        return app_dict["hcc_terse"]
+
+    if metric == 'hcc_summary':
+        return app_dict["hcc_summary"]
+
+    if metric == 'hcc_all':
+        return app_dict["hcc_all"]
 
     if metric == 'flow':
         station = station.lower()
@@ -75,7 +82,30 @@ def cache_weather():
     except KeyError as e:
         v_data = 'Error in fetching weather report'
     app_dict['weather'] = v_data
+
+    update_hcc_dict()
+
     return True
+
+def get_water_temperature():
+    url = "https://dl1.findlays.net/show/temp/thames1"
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        page = requests.get(url)
+        soup = BeautifulSoup(page.content, 'html.parser')
+    except Exception as e:
+        print(f"Error fetching water temperature data: {e}")
+        return 'NA'
+
+    lines = soup.body.text.split('\n')  # split by line break
+    for line in lines: 
+        if "River temperature now:" in line: # if this text is found in the line
+            return line.replace("C", "").split(': ')[1] # extract and return the value
+    print('Error fetching water temperature: no water temperature found')
+
+    return 'NA'
+
 
 
 @app.function(
@@ -136,7 +166,8 @@ def cache_flow():
 
     # cache sunrise times
     import hcc
-    app_dict['sunrise'] = hcc.sunrise_times().to_dict(orient='records')
+    sunrise = hcc.sunrise_times().to_dict(orient='records')
+    app_dict['sunrise'] = sunrise
 
 
     # cache lock board conditions
@@ -144,9 +175,49 @@ def cache_flow():
     new.rename(columns={'Current conditions': 'condition'}, inplace=True)
     new.rename(columns={'From': 'from'}, inplace=True)
     new.rename(columns={'To': 'to'}, inplace=True)
-    app_dict['lockboard'] = new[42:45].to_dict(orient='records')
+    boards = new[42:45].to_dict(orient='records')
+    app_dict['lockboard'] = boards
+
+    # cache water temperature
+    water_temperature = get_water_water_temperature()
+    app_dict['water_temperature'] = water_temperature
+
+    update_hcc_dict()
 
     return True
+
+def update_hcc_dict():
+    import datetime
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    terse = {
+        'updated':       timestamp,
+        'water_temp':    app_dict['water_temperature'],
+        'sunrise':       app_dict['sunrise'],
+        'flow_latest':   app_dict['flow_walton'][-1]['value'],
+        'boards':        app_dict['lockboard'],
+        'weather':       app_dict['weather'],
+    }
+    app_dict['hcc_terse'] = terse
+
+    summary = {
+        'updated_at':    timestamp,
+        'water_temp':    app_dict['water_temperature'],
+        'sunrise':       app_dict['sunrise'],
+        'flow_walton':   app_dict['flow_walton'],
+        'level_sunbury': app_dict['level_sunbury'],
+        'boards':        app_dict['lockboard'],
+        'weather':       app_dict['weather'],
+    }
+    app_dict['hcc_summary'] = summary
+
+    summary.update({
+        'flow_kingston': app_dict['flow_kingston'],
+        'level_molesey': app_dict['level_molesey'],
+    })
+    app_dict['hcc_all'] = summary
+    return True
+
 
 
 @app.local_entrypoint()
