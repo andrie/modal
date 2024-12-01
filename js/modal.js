@@ -255,6 +255,11 @@ async function update_hcc_summary() {
     return data;
 }
 
+async function update_hcc_all() {
+    const data = await request_modal('metric=hcc_all', 'hcc_all');
+    return data;
+}
+
 // window.onload ----------------------------------------------------------
 
 window.onload = async function() {
