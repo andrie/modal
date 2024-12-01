@@ -17,7 +17,7 @@ function getCache(cache_name, expiry = 15) {
     storedTime = localStorage.getItem(`time-${cache_name}`);
     currentTime = Date.now()
     expiryTime = parseInt(storedTime) + expiry * 60 * 1000;
-    if (storedData && storedTime && expiryTime > currentTime) {
+    if (storedData && storedTime && expiryTime < currentTime) {
         // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
         return JSON.parse(storedData);
     }
