@@ -1,5 +1,5 @@
 ---
-title: "Thames River Conditions"
+title: "Paddling conditions at Hampton Canoe Club"
 format: 
   html:
     css: 
