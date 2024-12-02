@@ -15,9 +15,11 @@ minimal_image = (
 conditions_image = (
     Image.debian_slim()
     .apt_install("git")
-    .pip_install("pandas", "requests")
-    .pip_install("git+https://github.com/andrie/thames_river_conditions.git", force_build=True)
-    .pip_install_from_requirements("requirements.txt")#, force_build=True)
+    .pip_install("pandas", "requests", "openai", "pydantic")
+    .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
+    .pip_install("git+https://github.com/cpsievert/chatlas") #, force_build=True)
+    .pip_install_from_requirements("requirements.txt") #, force_build=True)
+    .copy_local_file('./system_prompt.md', '/system_prompt.md')
 )
 
 
@@ -38,6 +40,10 @@ def conditions(metric = "flow", station = "walton"):
 
     if metric == 'hcc_all':
         return app_dict["hcc_all"]
+    
+    if metric == 'ai_guidance':
+        return app_dict['ai_guidance']
+
 
     if metric == 'flow':
         station = station.lower()
@@ -69,21 +75,39 @@ def conditions(metric = "flow", station = "walton"):
 def cache_weather():
     import os
     import hcc.metoffice
+
+    # save weather forecast
     try:
         api_key = os.environ["MET_OFFICE_API_KEY"]
     except KeyError as e:
         app_dict['weather'] = {"Error": "Invalid API key"}
-        return({"Error": f"{e}"})
+        # return({"Error": f"{e}"})
 
     try:
-        type = 'hourly'
+        # type = 'hourly'
+        type = 'three-hourly'
         w_data = hcc.metoffice.get_weather(51.41, -0.36, type = type, api_key = api_key)
+
         v_data = w_data.to_json(orient='columns')
     except KeyError as e:
         v_data = 'Error in fetching weather report'
     app_dict['weather'] = v_data
 
     update_hcc_dict()
+    # Generate chatbot summary
+
+    # try:
+    #     guidance = get_gpt_summary()
+    # except Exception as e:
+    #     import datetime
+    #     now = datetime.datetime.now()
+    #     guidance = f'Unable to generate AI guidance summary at {now}: {e}'
+    #     app_dict['ai_guidance'] = guidance
+
+    guidance = get_gpt_summary.remote()
+    app_dict['ai_guidance'] = guidance
+    print('Dictionary udpated with AI guidance')
+    print(guidance)
 
     return True
 
@@ -106,6 +130,83 @@ def get_water_temperature():
 
     return 'NA'
 
+
+
+
+def get_hcc_conditions(conditions):
+    '''
+    Get current conditions of river temperature, conditions and weather at Hampton Canoe Club.
+
+    Parameters:
+
+    foo: not used
+
+    '''
+    # url = "https://andrie--conditions.modal.run?metric=hcc_terse"
+    # try:
+    #     import requests
+    #     response = requests.get(url)
+    #     conditions = response.json()
+    try:
+        # conditions = app_dict['hcc_terse']
+        weatherString = conditions['weather']
+
+        from io import StringIO
+        import pandas as pd
+        weather = pd.read_json(StringIO(weatherString)).head(8)
+        weather['temperature'] = (weather['minScreenAirTemp'] + weather['maxScreenAirTemp']) / 2
+        weather['windSpeed10m'] *= 3.6
+        weather['windGustSpeed10m'] *= 3.6
+        weather[['time', 'description', 'temperature', 'windSpeed10m', 'windGustSpeed10m', 
+                    'probOfRain', 'probOfHeavyRain', 'probOfSnow', 'probOfHail', 'totalPrecipAmount']]
+        conditions['weather'] = weather.to_json()
+    except Exception as e:
+        print('Error in calling to modal')
+        return f'Error: {e}'
+    return conditions
+
+
+@app.function(
+    image = conditions_image,
+    secrets = [Secret.from_name("MET-OFFICE")]
+)
+def get_gpt_summary():
+    from chatlas import ChatOpenAI
+    import os
+    import json
+
+    print("get_gpt_summary triggered")
+
+    try:
+        api_key = os.environ["OPENAI_API_KEY"]
+    except KeyError as e:
+        print(f'Error in OpenAI key: {e}')
+
+    try:
+        with open('/system_prompt.md', 'r') as f:
+            system_prompt = f.read()
+            conditions = app_dict['hcc_terse']
+            conditions = get_hcc_conditions(conditions)
+            system_prompt += '\n\n' + json.dumps(conditions)
+    except Exception as e:
+        print(f'Error in creating system prompt: {e}')
+
+    chat = ChatOpenAI(
+        model="gpt-4o-mini",
+        system_prompt = system_prompt,
+        api_key = api_key
+    )
+
+    # chat.register_tool(get_hcc_conditions, model=NoFields)
+
+    # try:
+    resp = chat.chat("What are the conditions at Hampton Canoe Club?", echo='none')
+    guidance = resp.content
+    print(guidance)
+    # except Exception as e:
+    #     guidance = f'Unable to get response from chatbot, with error code {e}'
+    
+    return guidance
 
 
 @app.function(
@@ -222,9 +323,11 @@ def update_hcc_dict():
 
 @app.local_entrypoint()
 def run():
+    # guidance = get_gpt_summary.remote()
     cache_flow.remote()
     cache_weather.remote()
-    return "Updated flow and weather"
+    return(guidance)
+    # return "Updated flow and weather"
 
 if __name__ == "__main__":
     print(run())

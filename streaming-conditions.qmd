@@ -23,6 +23,11 @@ format:
 <script src="https://unpkg.com/suncalc"></script>
 ```
 
+## AI generated summary
+
+:::{#ai-guidance .autospinner}
+:::
+
 ## Sunrise and sunset times
 
 :::{#sun-times-table .autospinner}

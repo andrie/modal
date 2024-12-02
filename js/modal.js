@@ -66,6 +66,15 @@ async function displaySunTimes(element = 'sun-times-table') {
     }).render(container);
  }
 
+// AI summary -----------------------------------------------------------
+
+async function displayAIsummary(element = 'ai-guidance') {
+    data = await request_modal('metric=ai_guidance', 'ai_guidance')
+    // if (!data) { data = 'No summary available from AI'}
+    const container = document.getElementById(element);
+    container.innerHTML = data.replace(/\n/g, '<br>');
+}
+
 // river conditions -----------------------------------------------------
 
 async function displayRiverConditions(element = 'river-conditions-table') {
@@ -101,9 +110,20 @@ async function updateWeather(element = 'weather-forecast-table') {
     });
     const descriptions = Object.values(data.description);
     const icons = Object.values(data.icon);
-    const temperature = Object.values(data.screenTemperature).map(
-        t => Math.round(t) + '°C'
-    );
+
+    // screenTemperature is only available in hourly forecast
+    // const temperature = Object.values(data.screenTemperature).map(
+    //     t => Math.round(t) + '°C'
+    // );
+     
+    // Compute the mean of maxScreenAirTemp and minScreenAirTemp
+    const maxTemps = Object.values(data.maxScreenAirTemp);
+    const minTemps = Object.values(data.minScreenAirTemp);
+    const temperature = maxTemps.map((maxTemp, index) => {
+        const minTemp = minTemps[index];
+        return ((maxTemp + minTemp) / 2).toFixed(0) + '°C';
+    });
+
     const windSpeed = Object.values(data.windSpeed10m).map(v => Math.round(v*3.6))
     const windGust  = Object.values(data.windGustSpeed10m).map(v => Math.round(v*3.6))
     const windDir   = Object.values(data.windDirectionFrom10m)
@@ -281,6 +301,7 @@ window.onload = async function() {
     displaySunTimes('sun-times-table');
     displayRiverConditions('river-conditions-table')
     updateFlowRate("Walton", "flow-rate-walton")
+    displayAIsummary('ai-guidance', 'ai_guidance')
     if (!summary) {
         updateLockLevel("Sunbury", "level-sunbury")
         updateLockLevel("Molesey", "level-molesey")
