@@ -17,7 +17,9 @@ function getCache(cache_name, expiry = 15) {
     storedTime = localStorage.getItem(`time-${cache_name}`);
     currentTime = Date.now()
     expiryTime = parseInt(storedTime) + expiry * 60 * 1000;
-    if (storedData && storedTime && expiryTime < currentTime) {
+    expired = storedData && storedTime && expiryTime < currentTime
+    // console.log(`getCache ${cache_name}: ${storedTime}, ${expiryTime}, expired: ${expired}`)
+    if (!expired) {
         // If the stored data and time exist and the data is less than 15 minutes old, return the stored data
         return JSON.parse(storedData);
     }
@@ -33,6 +35,7 @@ function setCache(data, cache_name, time = Date.now()) {
 async function request_modal(parms, cache_name, expiry = 15) {
     data = getCache(cache_name, expiry = expiry)
     if (!data) {
+        console.log(`Making request with parameters ${parms}`)
         data = await request(`${modal_url}?${parms}`);
         if (data) { setCache(data, cache_name); }
     }
@@ -53,7 +56,6 @@ async function displaySunTimes(element = 'sun-times-table') {
     if (!container) { return null };
 
     const data = await request_modal('metric=sunrise', 'sunrise');
-    // console.log(data)
     container.innerHTML = '';
     // Transpose the data
     const tdata = [
@@ -137,8 +139,8 @@ async function updateWeather(element = 'weather-forecast-table') {
     const combinedData = times.map((time, index) =>
         [
             Object(data.time)[index], 
-            descriptions[index], 
             icons[index],
+            descriptions[index], 
             temperature[index],
             rain[index],
             wind[index] + ' - ' + windGust[index],
@@ -298,10 +300,10 @@ window.onload = async function() {
     Object.entries(hcc_data).forEach(([name, data]) => {
         setCache(data, name)
     })
-    displaySunTimes('sun-times-table');
-    displayRiverConditions('river-conditions-table')
-    updateFlowRate("Walton", "flow-rate-walton")
-    displayAIsummary('ai-guidance', 'ai_guidance')
+    await displaySunTimes('sun-times-table');
+    await displayRiverConditions('river-conditions-table')
+    await updateFlowRate("Walton", "flow-rate-walton")
+    await displayAIsummary('ai-guidance', 'ai_guidance')
     if (!summary) {
         updateLockLevel("Sunbury", "level-sunbury")
         updateLockLevel("Molesey", "level-molesey")
