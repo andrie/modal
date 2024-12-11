@@ -305,10 +305,10 @@ window.onload = async function() {
     await updateFlowRate("Walton", "flow-rate-walton")
     await displayAIsummary('ai-guidance', 'ai_guidance')
     if (!summary) {
-        updateLockLevel("Sunbury", "level-sunbury")
-        updateLockLevel("Molesey", "level-molesey")
-        updateFlowRate("Kingston", "flow-rate-kingston")
-        updateWeather('weather-forecast-table')
+        await updateLockLevel("Sunbury", "level-sunbury")
+        await updateLockLevel("Molesey", "level-molesey")
+        await updateFlowRate("Kingston", "flow-rate-kingston")
+        await updateWeather('weather-forecast-table')
     }
     
  }
