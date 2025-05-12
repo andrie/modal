@@ -1,7 +1,7 @@
 astral>=3.2
 beautifulsoup4>=4.12.3
 lxml>=5.3.0
-modal>=0.64.228
+modal>=0.75.7
 pandas>=2.2.3
 python-dotenv>=1.0.1
 requests>=2.32.3

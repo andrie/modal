@@ -2,7 +2,7 @@ import pathlib
 import pandas as pd
 import re
 
-from modal import Image, Period, App, Mount, Volume, web_endpoint, Dict, Secret
+from modal import Image, Period, App, Mount, Volume, fastapi_endpoint, Dict, Secret
 
 app = App("hcc-modal")
 app_dict = Dict.from_name("hcc-modal-dict", create_if_missing=True)
@@ -19,7 +19,7 @@ conditions_image = (
     .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
     .pip_install("git+https://github.com/cpsievert/chatlas") #, force_build=True)
     .pip_install_from_requirements("requirements.txt") #, force_build=True)
-    .copy_local_file('./system_prompt.md', '/system_prompt.md')
+    .add_local_file('./system_prompt.md', '/system_prompt.md')
 )
 
 
@@ -27,7 +27,7 @@ conditions_image = (
 @app.function(
     image   = minimal_image,
 )
-@web_endpoint(label="conditions")
+@fastapi_endpoint(label="conditions")
 def conditions(metric = "flow", station = "walton"):
     metric = metric.lower()
     station = station.lower()
@@ -323,7 +323,7 @@ def update_hcc_dict():
 
 @app.local_entrypoint()
 def run():
-    # guidance = get_gpt_summary.remote()
+    guidance = get_gpt_summary.remote()
     cache_flow.remote()
     cache_weather.remote()
     return(guidance)
