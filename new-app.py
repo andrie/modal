@@ -106,8 +106,8 @@ def cache_weather():
 
     guidance = get_gpt_summary.remote()
     app_dict['ai_guidance'] = guidance
-    print('Dictionary udpated with AI guidance')
-    print(guidance)
+    # print('Dictionary udpated with AI guidance')
+    # print(guidance)
 
     return True
 
