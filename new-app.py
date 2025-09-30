@@ -197,14 +197,10 @@ def get_gpt_summary():
         api_key = api_key
     )
 
-    # chat.register_tool(get_hcc_conditions, model=NoFields)
 
-    # try:
     resp = chat.chat("What are the conditions at Hampton Canoe Club?", echo='none')
     guidance = resp.content
     print(guidance)
-    # except Exception as e:
-    #     guidance = f'Unable to get response from chatbot, with error code {e}'
     
     return guidance
 
@@ -241,12 +237,15 @@ def cache_flow():
     }
     
     for station, url in flow_url.items():
-        flow = ea_rivers.get_readings_for_measure(url, limit = 4*24*7)
-        if flow.empty:
-            flow_dict = "No flow data"
-        else:
+        try:
+            flow = ea_rivers.get_readings_for_measure(url, limit = 4*24*7)
             flow = flow.sort_values(by='dateTime', ascending=True)[['dateTime', 'value']]
             flow_dict = flow.to_dict(orient='records')
+        except Exception:
+            # flow_dict = float('nan') # this causes issues with JSON serialization
+            pass
+
+        
         app_dict[f'flow_{station}'] = flow_dict
 
 
@@ -327,7 +326,6 @@ def run():
     cache_flow.remote()
     cache_weather.remote()
     return(guidance)
-    # return "Updated flow and weather"
 
 if __name__ == "__main__":
     print(run())
