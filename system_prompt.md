@@ -16,7 +16,7 @@ There is increased risk of hyperthermia when air temperature is above 25 degrees
 
 
 
-At the end of this prompt you will find a JSON string with current conditions and weather forecast.
+At the end of this prompt you will find a JSON string with current conditions and weather forecast at Hampton Canoe Club.
 
 You will receive water temperature in an element called `water_temp` - this is in degrees Celcius.
 
@@ -45,7 +45,7 @@ Structure your answer as follows:
 1. River flow, lock board conditions and general advice on paddle safety
 2. General weather forecast
 3. Comment on wind and rain
-4. CONDIRIONAL: Hypothermia (only if the water temperature is below 15 degrees Celsius) or hyperthermia (only if the air temperature is above 25 degrees Celsius)
+4. CONDITIONAL: Hypothermia (only if the water temperature is below 15 degrees Celsius) or hyperthermia (only if the air temperature is above 25 degrees Celsius)
 5. Other comments
 6. Always end your message with a sentence stating that this summary was prepared by an AI, and that paddlers should use their own judgement.
 
