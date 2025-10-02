@@ -29,6 +29,34 @@ conditions_image = (
 )
 @fastapi_endpoint(label="conditions")
 def conditions(metric = "flow", station = "walton"):
+    """
+    Get Hampton Canoe Club water and weather conditions.
+    
+    Args:
+        metric (str): Type of data to retrieve. Options:
+            - 'hcc_terse': Summary conditions (latest flow, weather, boards)
+            - 'hcc_summary': Detailed conditions with time series
+            - 'flow': River flow data for specified station
+            - 'level': River level data for specified station  
+            - 'hcc_all': Complete dataset including all stations
+            - 'ai_guidance': AI-generated conditions summary
+            - 'sunrise': Sunrise/sunset times
+            - 'boards': Lock board conditions
+            - 'weather': Weather forecast
+            
+        station (str): Station name for flow/level data. Options:
+            - Flow: 'walton', 'kingston'
+            - Level: 'sunbury', 'molesey'
+            
+    Returns:
+        dict/list: JSON data for requested metric and station
+        
+    Examples:
+        /conditions?metric=flow&station=walton
+        /conditions?metric=hcc_terse
+        /conditions?metric=weather
+    """
+
     metric = metric.lower()
     station = station.lower()
 
@@ -79,9 +107,8 @@ def cache_weather():
     # save weather forecast
     try:
         api_key = os.environ["MET_OFFICE_API_KEY"]
-    except KeyError as e:
+    except KeyError:
         app_dict['weather'] = {"Error": "Invalid API key"}
-        # return({"Error": f"{e}"})
 
     try:
         # type = 'hourly'
@@ -94,20 +121,9 @@ def cache_weather():
     app_dict['weather'] = v_data
 
     update_hcc_dict()
-    # Generate chatbot summary
-
-    # try:
-    #     guidance = get_gpt_summary()
-    # except Exception as e:
-    #     import datetime
-    #     now = datetime.datetime.now()
-    #     guidance = f'Unable to generate AI guidance summary at {now}: {e}'
-    #     app_dict['ai_guidance'] = guidance
 
     guidance = get_gpt_summary.remote()
     app_dict['ai_guidance'] = guidance
-    # print('Dictionary udpated with AI guidance')
-    # print(guidance)
 
     return True
 
@@ -241,13 +257,10 @@ def cache_flow():
             flow = ea_rivers.get_readings_for_measure(url, limit = 4*24*7)
             flow = flow.sort_values(by='dateTime', ascending=True)[['dateTime', 'value']]
             flow_dict = flow.to_dict(orient='records')
+            app_dict[f'flow_{station}'] = flow_dict
         except Exception:
             # flow_dict = float('nan') # this causes issues with JSON serialization
             pass
-
-        
-        app_dict[f'flow_{station}'] = flow_dict
-
 
     level_url = {
         'sunbury': f'{base_url}/3101TH-level-downstage-i-15_min-mASD',
