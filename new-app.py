@@ -1,8 +1,8 @@
-import pathlib
-import pandas as pd
-import re
+# import pathlib
+# import pandas as pd
+# import re
 
-from modal import Image, Period, App, Mount, Volume, fastapi_endpoint, Dict, Secret
+from modal import Image, Period, App, fastapi_endpoint, Dict, Secret
 
 app = App("hcc-modal")
 app_dict = Dict.from_name("hcc-modal-dict", create_if_missing=True)
@@ -116,7 +116,7 @@ def cache_weather():
         w_data = hcc.metoffice.get_weather(51.41, -0.36, type = type, api_key = api_key)
 
         v_data = w_data.to_json(orient='columns')
-    except KeyError as e:
+    except KeyError:
         v_data = 'Error in fetching weather report'
     app_dict['weather'] = v_data
 
@@ -334,11 +334,24 @@ def update_hcc_dict():
 
 
 @app.local_entrypoint()
-def run():
-    guidance = get_gpt_summary.remote()
-    cache_flow.remote()
-    cache_weather.remote()
-    return(guidance)
+def run(
+    update_flow: bool = True,
+    update_weather: bool = True, 
+    guidance: bool = True
+):
+    if update_flow:
+        print("Caching flow data...")
+        cache_flow.remote()
+    
+    if update_weather:
+        print("Caching weather data...")
+        cache_weather.remote()
+    
+    if guidance:
+        guidance_text = app_dict['ai_guidance']
+        return guidance_text
+    else:
+        return "Updates completed"
 
 if __name__ == "__main__":
     print(run())
