@@ -153,7 +153,7 @@ async function updateWeather(element = 'weather-forecast-table') {
     });
 
     const wrapper = document.createElement('div');
-    wrapper.style.maxHeight = '16rem'; // Adjust this value to fit 8 rows
+    // wrapper.style.minHeight = '12rem'; // Adjust this value to fit 8 rows
     wrapper.style.overflow = 'auto';
     container.appendChild(wrapper);
 
