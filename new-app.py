@@ -15,7 +15,7 @@ minimal_image = (
 conditions_image = (
     Image.debian_slim()
     .apt_install("git")
-    .pip_install("pandas", "requests", "openai", "pydantic")
+    .pip_install("pandas", "requests", "openai", "pydantic", "anthropic")
     .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
     .pip_install("git+https://github.com/cpsievert/chatlas") #, force_build=True)
     .pip_install_from_requirements("requirements.txt") #, force_build=True)
@@ -187,7 +187,8 @@ def get_hcc_conditions(conditions):
     secrets = [Secret.from_name("MET-OFFICE")]
 )
 def get_gpt_summary():
-    from chatlas import ChatOpenAI
+    # from chatlas import ChatOpenAI
+    from chatlas import ChatAnthropic
     import os
     import json
 
@@ -195,6 +196,7 @@ def get_gpt_summary():
 
     try:
         api_key = os.environ["OPENAI_API_KEY"]
+        api_key = os.environ["ANTHROPIC_API_KEY"]
     except KeyError as e:
         print(f'Error in OpenAI key: {e}')
 
@@ -207,8 +209,13 @@ def get_gpt_summary():
     except Exception as e:
         print(f'Error in creating system prompt: {e}')
 
-    chat = ChatOpenAI(
-        model="gpt-4o-mini",
+    # chat = ChatOpenAI(
+    #     model="gpt-4o-mini",
+    #     system_prompt = system_prompt,
+    #     api_key = api_key
+    # )
+    chat = ChatAnthropic(
+        model="claude-haiku-4-5-20251001",
         system_prompt = system_prompt,
         api_key = api_key
     )
