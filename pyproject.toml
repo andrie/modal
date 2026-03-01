@@ -5,12 +5,17 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic",
     "astral>=3.2",
     "beautifulsoup4>=4.12.3",
+    "chatlas @ git+https://github.com/cpsievert/chatlas",
+    "ea-rivers @ git+https://github.com/DavidASmith/ea-rivers.git",
     "lxml>=5.3.0",
-    "modal>=0.64.228",
+    "modal>=0.75.7",
+    "openai",
     "pandas>=2.2.3",
-    "plotly>=5.24.1",
+    "pydantic",
     "python-dotenv>=1.0.1",
     "requests>=2.32.3",
+    "hcc @ git+https://github.com/andrie/thames_river_conditions.git",
 ]

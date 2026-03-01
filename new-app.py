@@ -8,17 +8,14 @@ app = App("hcc-modal")
 app_dict = Dict.from_name("hcc-modal-dict", create_if_missing=True)
 
 minimal_image = (
-    Image.debian_slim()
+    Image.debian_slim(python_version="3.12")
     .pip_install('pandas', 'requests')
 )
 
 conditions_image = (
-    Image.debian_slim()
+    Image.debian_slim(python_version="3.12")
     .apt_install("git")
-    .pip_install("pandas", "requests", "openai", "pydantic", "anthropic")
-    .pip_install("git+https://github.com/andrie/thames_river_conditions.git") #, force_build=True)
-    .pip_install("git+https://github.com/cpsievert/chatlas") #, force_build=True)
-    .pip_install_from_requirements("requirements.txt") #, force_build=True)
+    .pip_install_from_pyproject("pyproject.toml")
     .add_local_file('./system_prompt.md', '/system_prompt.md')
 )
 
@@ -275,13 +272,16 @@ def cache_flow():
     }
     
     for station, url in level_url.items():
-        level = ea_rivers.get_readings_for_measure(url, limit = 4*24*7)
-        if level.empty:
-            level_dict = "No level data"
-        else:
-            level = level.sort_values(by='dateTime', ascending=True)[['dateTime', 'value']]
-            level_dict = level.to_dict(orient='records')
-        app_dict[f'level_{station}'] = level_dict
+        try:
+            level = ea_rivers.get_readings_for_measure(url, limit = 4*24*7)
+            if level.empty:
+                level_dict = "No level data"
+            else:
+                level = level.sort_values(by='dateTime', ascending=True)[['dateTime', 'value']]
+                level_dict = level.to_dict(orient='records')
+            app_dict[f'level_{station}'] = level_dict
+        except Exception:
+            pass
 
 
     # cache sunrise times
