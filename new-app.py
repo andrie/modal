@@ -9,7 +9,7 @@ app_dict = Dict.from_name("hcc-modal-dict", create_if_missing=True)
 
 minimal_image = (
     Image.debian_slim(python_version="3.12")
-    .pip_install('pandas', 'requests')
+    .pip_install('pandas', 'requests', 'fastapi[standard]')
 )
 
 conditions_image = (

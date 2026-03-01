@@ -18,4 +18,6 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "requests>=2.32.3",
     "hcc @ git+https://github.com/andrie/thames_river_conditions.git",
+    "plotly",
+    "pytz"
 ]
