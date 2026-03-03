@@ -16,6 +16,7 @@ conditions_image = (
     Image.debian_slim(python_version="3.12")
     .apt_install("git")
     .pip_install_from_pyproject("pyproject.toml")
+    .pip_install('plotly')
     .add_local_file('./system_prompt.md', '/system_prompt.md')
 )
 
